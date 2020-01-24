@@ -13,7 +13,7 @@
         "deploy": "truffle migrate --skipDryRun --network $NETWORK",
         "clean-build": "echo  \"Have all contracts been verified on Etherscan? Continuing in 10 seconds...\" && sleep 10 && grep -R -l 'networks\": {}' build --exclude-dir=development | xargs rm; node build/clean.js",
         "verify": "truffle run verify --network $NETWORK",
-        "docker-ganache": "npx ganache-cli -i 1313 -d -p 8545 -h 0.0.0.0 --db=/home/.ganache"
+        "docker-ganache": "npx ganache-cli -d -p 8545 -h 0.0.0.0 --db=/home/.ganache"
     },
     "dependencies": {
         "openzeppelin-solidity": "2.4.0"
@@ -33,7 +33,7 @@
         "dotenv": "^8.2.0",
         "eth-gas-reporter": "^0.2.12",
         "ethereumjs-abi": "^0.6.8",
-        "ganache-cli": "^6.7.0",
+        "ganache-cli": "^6.8.2",
         "hash.js": "^1.1.7",
         "patch-package": "^6.2.0",
         "solc": "0.5.12",

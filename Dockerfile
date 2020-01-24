@@ -2,6 +2,8 @@ FROM node:alpine
 
 RUN apk update && apk add --no-cache --virtual build-dependencies git python g++ make
 
+RUN yarn global add ganache-cli@latest
+
 RUN mkdir -p /home/ren/protocol
 WORKDIR /home/ren/protocol
 
