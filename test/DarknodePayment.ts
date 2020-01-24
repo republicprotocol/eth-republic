@@ -6,7 +6,7 @@ import {
 } from "../types/truffle-contracts";
 import { ETHEREUM_TOKEN_ADDRESS, MINIMUM_BOND, NULL, PUBK, waitForEpoch } from "./helper/testUtils";
 
-const CycleChanger = artifacts.require("CycleChanger");
+const Claimer = artifacts.require("Claimer");
 const RenToken = artifacts.require("RenToken");
 const ERC20 = artifacts.require("PaymentToken");
 const DarknodePaymentStore = artifacts.require("DarknodePaymentStore");
@@ -70,18 +70,18 @@ contract("DarknodePayment", (accounts: string[]) => {
         };
 
         const printTokens = async () => {
-            console.log(`Registered tokens: [`);
+            console.info(`Registered tokens: [`);
             let i = 0;
             while (true) {
                 try {
                     const token = await dnp.registeredTokens.call(i);
-                    console.log(`    ${token}, (${await dnp.registeredTokenIndex.call(token)})`);
+                    console.info(`    ${token}, (${await dnp.registeredTokenIndex.call(token)})`);
                     i++;
                 } catch (error) {
                     break;
                 }
             }
-            console.log(`]`);
+            console.info(`]`);
         };
 
         const checkTokenIndexes = async () => {
@@ -102,25 +102,46 @@ contract("DarknodePayment", (accounts: string[]) => {
         };
 
         it("cannot register token if not owner", async () => {
-            await dnp.registerToken(dai.address, { from: accounts[1] }).should.be.rejected;
+            await dnp.registerToken(dai.address, { from: accounts[1] })
+                .should.be.rejectedWith(/Ownable: caller is not the owner/);
         });
 
         it("can register tokens", async () => {
             const lengthBefore = await tokenCount();
 
+            (await dnp.tokenPendingRegistration.call(dai.address))
+                .should.equal(false);
+            (await dnp.tokenPendingRegistration.call(erc20Token.address))
+                .should.equal(false);
+
             await dnp.registerToken(dai.address);
-            await dnp.registerToken(dai.address).should.be.rejectedWith(/token already pending registration/);
+            (await dnp.tokenPendingRegistration.call(dai.address))
+                .should.equal(true);
+            await dnp.registerToken(dai.address)
+                .should.be.rejectedWith(/DarknodePayment: token already pending registration/);
             await dnp.registerToken(erc20Token.address);
+            (await dnp.tokenPendingRegistration.call(erc20Token.address))
+                .should.equal(true);
             // complete token registration
             await waitForEpoch(dnr);
             (await dnp.registeredTokens.call(lengthBefore)).should.equal(dai.address);
             (await dnp.registeredTokenIndex.call(dai.address)).should.bignumber.equal(new BN(lengthBefore + 1));
+            (await dnp.tokenPendingRegistration.call(dai.address))
+                .should.equal(false);
+            (await dnp.tokenPendingRegistration.call(erc20Token.address))
+                .should.equal(false);
+
             await dnp.registerToken(ETHEREUM_TOKEN_ADDRESS);
             // complete token registration
             await waitForEpoch(dnr);
             (await dnp.registeredTokens.call(lengthBefore + 2)).should.equal(ETHEREUM_TOKEN_ADDRESS);
             (await dnp.registeredTokenIndex.call(ETHEREUM_TOKEN_ADDRESS)).should.bignumber.equal(lengthBefore + 3);
             await checkTokenIndexes();
+
+            (await dnp.tokenPendingRegistration.call(dai.address))
+                .should.equal(false);
+            (await dnp.tokenPendingRegistration.call(erc20Token.address))
+                .should.equal(false);
         });
 
         it("can deregister a destroyed token", async () => {
@@ -139,16 +160,19 @@ contract("DarknodePayment", (accounts: string[]) => {
         });
 
         it("cannot register already registered tokens", async () => {
-            await dnp.registerToken(dai.address).should.be.rejectedWith(/token already registered/);
+            await dnp.registerToken(dai.address)
+                .should.be.rejectedWith(/DarknodePayment: token already registered/);
         });
 
         it("cannot deregister token if not owner", async () => {
-            await dnp.deregisterToken(ETHEREUM_TOKEN_ADDRESS, { from: accounts[1] }).should.be.rejected;
+            await dnp.deregisterToken(ETHEREUM_TOKEN_ADDRESS, { from: accounts[1] })
+                .should.be.rejectedWith(/Ownable: caller is not the owner/);
         });
 
         it("can deregister tokens", async () => {
             await dnp.deregisterToken(ETHEREUM_TOKEN_ADDRESS);
-            await dnp.deregisterToken(ETHEREUM_TOKEN_ADDRESS).should.be.rejectedWith(/token not registered/);
+            await dnp.deregisterToken(ETHEREUM_TOKEN_ADDRESS)
+                .should.be.rejectedWith(/DarknodePayment: token not registered/);
             await dnp.deregisterToken(erc20Token.address);
             // check token deregistration
             (await dnp.registeredTokenIndex.call(ETHEREUM_TOKEN_ADDRESS)).should.bignumber.equal(0);
@@ -157,7 +181,8 @@ contract("DarknodePayment", (accounts: string[]) => {
         });
 
         it("cannot deregister unregistered tokens", async () => {
-            await dnp.deregisterToken(ETHEREUM_TOKEN_ADDRESS).should.be.rejectedWith(/token not registered/);
+            await dnp.deregisterToken(ETHEREUM_TOKEN_ADDRESS)
+                .should.be.rejectedWith(/DarknodePayment: token not registered/);
         });
 
         it("properly sets index", async () => {
@@ -236,20 +261,39 @@ contract("DarknodePayment", (accounts: string[]) => {
         it("cannot deposit ERC20 with ETH attached", async () => {
             const amount = new BN("100000000000000000");
             await dnp.deposit(amount, dai.address, { value: "1", from: accounts[0] })
-                .should.be.rejectedWith(/unexpected ether transfer/);
+                .should.be.rejectedWith(/DarknodePayment: unexpected ether transfer/);
+        });
+
+        it("cannot deposit ERC20 that has not been registered", async () => {
+            const before = new BN(await dai.balanceOf.call(accounts[0]));
+
+            // Deregister dai and try to deposit
+            await dnp.deregisterToken(dai.address);
+            await waitForEpoch(dnr);
+
+            // Approve and deposit
+            await dai.approve(dnp.address, before);
+            await dnp.deposit(before, dai.address, { from: accounts[0] })
+                .should.be.rejectedWith(/DarknodePayment: token not registered/);
+
+            // RESET: Register dai back
+            await dnp.registerToken(dai.address);
+            await waitForEpoch(dnr);
         });
     });
 
     describe("Claiming rewards", async () => {
         it("cannot tick if not registered", async () => {
-            await dnp.claim(accounts[0]).should.be.rejectedWith(/darknode is not registered/);
+            await dnp.claim(accounts[0])
+                .should.be.rejectedWith(/DarknodePayment: darknode is not registered/);
         });
 
         it("cannot withdraw if there is no balance", async () => {
             await registerDarknode(1);
             await waitForEpoch(dnr);
             await waitForEpoch(dnr);
-            await dnp.withdraw(darknode1, dai.address).should.be.rejectedWith(/nothing to withdraw/);
+            await dnp.withdraw(darknode1, dai.address)
+                .should.be.rejectedWith(/DarknodePayment: nothing to withdraw/);
         });
 
         it("can be paid DAI from a payee", async () => {
@@ -305,7 +349,8 @@ contract("DarknodePayment", (accounts: string[]) => {
 
             const oldETHBalance = new BN(await store.totalBalance.call(ETHEREUM_TOKEN_ADDRESS));
             const amount = new BN("1000000000");
-            await dnp.deposit(amount, ETHEREUM_TOKEN_ADDRESS).should.be.rejectedWith(/mismatched deposit value/);
+            await dnp.deposit(amount, ETHEREUM_TOKEN_ADDRESS)
+                .should.be.rejectedWith(/DarknodePayment: mismatched deposit value/);
             await dnp.deposit(amount, ETHEREUM_TOKEN_ADDRESS, { value: amount.toString(), from: accounts[0] });
             new BN(await store.totalBalance.call(ETHEREUM_TOKEN_ADDRESS))
                 .should.bignumber.equal(oldETHBalance.add(amount));
@@ -364,7 +409,8 @@ contract("DarknodePayment", (accounts: string[]) => {
 
         it("cannot call tick twice in the same cycle", async () => {
             await dnp.claim(darknode1);
-            await dnp.claim(darknode1).should.be.rejectedWith(/reward already claimed/);
+            await dnp.claim(darknode1)
+                .should.be.rejectedWith(/DarknodePayment: reward already claimed/);
         });
 
         it("can tick again after a cycle has passed", async () => {
@@ -393,7 +439,8 @@ contract("DarknodePayment", (accounts: string[]) => {
                 const bal = new BN(await dnp.darknodeBalances.call(accounts[i], dai.address));
                 bal.should.bignumber.equal(new BN(0));
                 // since darknode has not been around for a full epoch
-                await tick(accounts[i]).should.be.rejectedWith(/cannot claim for this epoch/);
+                await tick(accounts[i])
+                    .should.be.rejectedWith(/DarknodePayment: cannot claim for this epoch/);
             }
 
             const rewards = new BN("300000000000000000");
@@ -446,9 +493,11 @@ contract("DarknodePayment", (accounts: string[]) => {
         });
 
         it("cannot withdraw if a darknode owner is invalid", async () => {
-            await dnp.withdraw(NULL, dai.address).should.eventually.be.rejectedWith(/invalid darknode owner/);
+            await dnp.withdraw(NULL, dai.address)
+                .should.be.rejectedWith(/invalid darknode owner/);
             // accounts[0] is not a registered darknode
-            await dnp.withdraw(accounts[0], dai.address).should.eventually.be.rejectedWith(/invalid darknode owner/);
+            await dnp.withdraw(accounts[0], dai.address)
+                .should.be.rejectedWith(/invalid darknode owner/);
         });
 
         it("cannot withdraw more than once in a cycle", async () => {
@@ -468,8 +517,10 @@ contract("DarknodePayment", (accounts: string[]) => {
             await withdraw(darknode1);
 
             // Rest should fail
-            await dnp.withdraw(darknode1, dai.address).should.be.rejectedWith(/nothing to withdraw/);
-            await dnp.withdraw(darknode1, dai.address).should.be.rejectedWith(/nothing to withdraw/);
+            await dnp.withdraw(darknode1, dai.address)
+                .should.be.rejectedWith(/DarknodePayment: nothing to withdraw/);
+            await dnp.withdraw(darknode1, dai.address)
+                .should.be.rejectedWith(/DarknodePayment: nothing to withdraw/);
         });
 
         it("cannot tick if it is blacklisted", async () => {
@@ -482,7 +533,8 @@ contract("DarknodePayment", (accounts: string[]) => {
             await waitForEpoch(dnr);
 
             // Tick should fail
-            await tick(darknode2).should.be.rejected;
+            await tick(darknode2)
+                .should.be.rejectedWith(/DarknodePayment: darknode is not registered/);
         });
 
         it("can still withdraw allocated rewards when blacklisted", async () => {
@@ -520,34 +572,28 @@ contract("DarknodePayment", (accounts: string[]) => {
 
     describe("Transferring ownership", async () => {
         it("should disallow unauthorized transferring of ownership", async () => {
-            await dnp.transferStoreOwnership(accounts[1], { from: accounts[1] }).should.eventually.be.rejected;
-            await dnp.claimStoreOwnership({ from: accounts[1] }).should.eventually.be.rejected;
+            await dnp.transferStoreOwnership(accounts[1], { from: accounts[1] })
+                .should.be.rejectedWith(/Ownable: caller is not the owner/);
+            await dnp.claimStoreOwnership({ from: accounts[1] })
+                .should.be.rejectedWith(/Claimable: caller is not the pending owner/);
         });
 
         it("can transfer ownership of the darknode payment store", async () => {
-            // [ACTION] Initiate ownership transfer to wrong account
-            await dnp.transferStoreOwnership(accounts[1]);
+            const newDarknodePayment = await DarknodePayment.new(
+                "",
+                dnr.address,
+                store.address,
+                0,
+            );
 
-            // [ACTION] Can correct ownership transfer
-            await dnp.transferStoreOwnership(owner);
+            // [ACTION] Initiate ownership transfer to wrong account
+            await dnp.transferStoreOwnership(newDarknodePayment.address, { from: accounts[0] });
 
             // [CHECK] Owner should still be dnp
-            (await store.owner.call()).should.equal(dnp.address);
-
-            // [ACTION] Claim ownership
-            await store.claimOwnership();
-
-            // [CHECK] Owner should now be main account
-            (await store.owner.call()).should.equal(owner);
+            (await store.owner.call()).should.equal(newDarknodePayment.address);
 
             // [RESET] Initiate ownership transfer back to dnp
-            await store.transferOwnership(dnp.address);
-
-            // [CHECK] Owner should still be main account
-            (await store.owner.call()).should.equal(owner);
-
-            // [RESET] Claim ownership
-            await dnp.claimStoreOwnership();
+            await newDarknodePayment.transferStoreOwnership(dnp.address);
 
             // [CHECK] Owner should now be the dnp
             (await store.owner.call()).should.equal(dnp.address);
@@ -557,34 +603,45 @@ contract("DarknodePayment", (accounts: string[]) => {
     describe("DarknodePaymentStore negative tests", async () => {
         // Transfer the ownership to owner
         before(async () => {
+            const claimer = await Claimer.new(store.address);
             // [ACTION] Can correct ownership transfer
-            await dnp.transferStoreOwnership(owner);
+            await dnp.transferStoreOwnership(claimer.address);
             // [ACTION] Claim ownership
-            await store.claimOwnership();
+            await claimer.transferStoreOwnership(owner);
+            await store.claimOwnership({ from: owner });
             // [CHECK] Owner should now be main account
             (await store.owner.call()).should.equal(owner);
         });
 
         it("cannot increment balances by an invalid amounts", async () => {
             await store.incrementDarknodeBalance(darknode1, dai.address, 0)
-                .should.eventually.be.rejectedWith(/invalid amount/);
+                .should.be.rejectedWith(/DarknodePaymentStore: invalid amount/);
             const invalidAmount = new BN(await store.availableBalance.call(dai.address)).add(new BN(1));
             await store.incrementDarknodeBalance(darknode1, dai.address, invalidAmount)
-                .should.eventually.be.rejectedWith(/insufficient contract balance/);
+                .should.be.rejectedWith(/DarknodePaymentStore: insufficient contract balance/);
         });
 
         it("cannot transfer more than is in the balance", async () => {
             const invalidAmount = new BN(await dnp.darknodeBalances.call(darknode1, dai.address)).add(new BN(1));
             await store.transfer(darknode1, dai.address, invalidAmount, darknode1)
-                .should.eventually.be.rejectedWith(/insufficient darknode balance/);
+                .should.be.rejectedWith(/DarknodePaymentStore: insufficient darknode balance/);
         });
 
         it("cannot call functions from non-owner", async () => {
             await store.incrementDarknodeBalance(darknode1, dai.address, new BN(0), { from: accounts[2] })
-                .should.eventually.be.rejected;
+                .should.be.rejectedWith(/Ownable: caller is not the owner/);
             await store.transfer(darknode1, dai.address, new BN(0), darknode1, { from: accounts[2] })
-                .should.eventually.be.rejected;
-            await store.transferOwnership(dnp.address, { from: accounts[2] }).should.eventually.be.rejected;
+                .should.be.rejectedWith(/Ownable: caller is not the owner/);
+            await store.transferOwnership(dnp.address, { from: accounts[2] })
+                .should.be.rejectedWith(/Ownable: caller is not the owner/);
+        });
+
+        it("cannot transferOwnership to the same owner", async () => {
+            await store.transferOwnership(owner, { from: owner })
+                .should.be.rejectedWith(/Claimable: invalid new owner/);
+            await store.transferOwnership(accounts[3], { from: owner });
+            await store.transferOwnership(accounts[3], { from: owner })
+                .should.be.rejectedWith(/Claimable: invalid new owner/);
         });
 
         // Transfer the ownership back to DNP
@@ -607,15 +664,17 @@ contract("DarknodePayment", (accounts: string[]) => {
         });
 
         it("cannot update cycleChanger to an invalid address", async () => {
-            await dnp.updateCycleChanger(NULL).should.eventually.be.rejectedWith(/invalid contract address/);
+            await dnp.updateCycleChanger(NULL)
+                .should.be.rejectedWith(/invalid contract address/);
         });
 
         it("can update cycleChanger to different address", async () => {
-            await dnp.updateCycleChanger(accounts[2]).should.not.eventually.be.rejected;
-            await dnp.changeCycle({ from: accounts[2] }).should.not.eventually.be.rejected;
-            await dnp.changeCycle().should.eventually.be.rejectedWith(/not cycle changer/);
+            await dnp.updateCycleChanger(accounts[2]);
+            await dnp.changeCycle({ from: accounts[2] });
+            await dnp.changeCycle()
+                .should.be.rejectedWith(/DarknodePayment: not cycle changer/);
             // Restore the cycle changer to the dnr address
-            await dnp.updateCycleChanger(dnr.address).should.not.eventually.be.rejected;
+            await dnp.updateCycleChanger(dnr.address);
         });
     });
 
@@ -651,11 +710,16 @@ contract("DarknodePayment", (accounts: string[]) => {
         });
 
         it("cannot change payout percent to an invalid percent", async () => {
-            await dnp.updatePayoutPercentage(new BN(101)).should.eventually.be.rejectedWith(/invalid percent/);
-            await dnp.updatePayoutPercentage(new BN(201)).should.eventually.be.rejectedWith(/invalid percent/);
-            await dnp.updatePayoutPercentage(new BN(255)).should.eventually.be.rejectedWith(/invalid percent/);
-            await dnp.updatePayoutPercentage(new BN(256)).should.eventually.be.rejectedWith(/invalid percent/);
-            await dnp.updatePayoutPercentage(new BN(32782)).should.eventually.be.rejectedWith(/invalid percent/);
+            await dnp.updatePayoutPercentage(new BN(101))
+                .should.be.rejectedWith(/DarknodePayment: invalid percent/);
+            await dnp.updatePayoutPercentage(new BN(201))
+                .should.be.rejectedWith(/DarknodePayment: invalid percent/);
+            await dnp.updatePayoutPercentage(new BN(255))
+                .should.be.rejectedWith(/DarknodePayment: invalid percent/);
+            await dnp.updatePayoutPercentage(new BN(256))
+                .should.be.rejectedWith(/DarknodePayment: invalid percent/);
+            await dnp.updatePayoutPercentage(new BN(32782))
+                .should.be.rejectedWith(/DarknodePayment: invalid percent/);
         });
 
         it("can change payout percent to a valid percent", async () => {
@@ -697,6 +761,15 @@ contract("DarknodePayment", (accounts: string[]) => {
             await waitForEpoch(dnr);
         });
 
+    });
+
+    it("can update DarknodeRegistry", async () => {
+        const darknodeRegistry = await dnp.darknodeRegistry.call();
+        await dnp.updateDarknodeRegistry(NULL)
+            .should.be.rejectedWith(/DarknodePayment: invalid Darknode Registry address/);
+
+        await dnp.updateDarknodeRegistry(accounts[0]);
+        await dnp.updateDarknodeRegistry(darknodeRegistry);
     });
 
     const tick = async (address: string) => {
@@ -763,7 +836,7 @@ contract("DarknodePayment", (accounts: string[]) => {
 
     const updatePayoutPercent = async (percent: number | string | BN) => {
         const p = new BN(percent);
-        await dnp.updatePayoutPercentage(p).should.eventually.not.be.rejected;
+        await dnp.updatePayoutPercentage(p);
         new BN(await dnp.nextCyclePayoutPercent.call()).should.bignumber.equal(p);
         await waitForEpoch(dnr);
         new BN(await dnp.currentCyclePayoutPercent.call()).should.bignumber.equal(p);

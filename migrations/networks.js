@@ -9,6 +9,7 @@ const config = {
     MALICIOUS_SLASH_PERCENT: 50, // Slash 50% of the bond
     SECRET_REVEAL_SLASH_PERCENT: 100, // Slash 100% of the bond
     mintAuthority: "", // Darknode public key
+    proxyOwner: "",
     shiftInFee: 10,
     shiftOutFee: 10,
     zBTCMinShiftOutAmount: 10000,
@@ -18,6 +19,8 @@ const config = {
 
 module.exports = {
     mainnet: {
+        Protocol: "",
+        ProtocolLogic: "",
         RenToken: "0x408e41876cCCDC0F92210600ef50372656052a38",
         DarknodeSlasher: "0x0000000000000000000000000000000000000000",
         DarknodeRegistry: "0x34bd421C7948Bc16f826Fd99f9B785929b121633",
@@ -40,49 +43,56 @@ module.exports = {
         config: {
             ...config,
             mintAuthority: "TODO",
+            proxyOwner: "0x5E2603499eddc325153d96445A6c44487F0d1859",
         },
     },
     chaosnet: {
-        RenToken: "0x408e41876cCCDC0F92210600ef50372656052a38",
-        DarknodeSlasher: "0x0000000000000000000000000000000000000000",
-        DarknodeRegistry: "0xe0a0FC6eCABa77638b4f516C11B68f3837fe949a",
-        DarknodeRegistryStore: "0x14Add4Ca443E7445A3418bB572D6079bFC98897a",
-        DarknodePayment: "0x50190F37020505405670656E50A3df49484a9123",
-        DarknodePaymentStore: "0x7546dbfB23F22C05b190DFbbBAa48E4420316677",
         tokens: {
             DAI: "0x89d24A6b4CcB1B6fAA2625fE562bDD9a23260359",
             ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         },
 
-        BTCShifter: "0x2F4657e26D4887Ed9029FD5B97661FF4582D0cD6",
-        ZECShifter: "0x8cb5e78CD53A6b994d5C1Cc52A4A773705A9599a",
-        BCHShifter: "0xE0926B2f1B37c2DAE0c5682F5Fd75ADf83CFe771",
-        zBTC: "0xc04956C6472CDd58766614f8D47F6826aC477fB9",
-        zZEC: "0x09aA07Ae98fdE91D66775C13107e9F082fF65295",
-        zBCH: "0x0e68EE104c768078cB3624396AAf9285C58f1a73",
-        ShifterRegistry: "0x1d4713B74e79A3696722Aebe05de976979876CAC",
+        Protocol: "",
+        ProtocolLogic: "",
+        RenToken: "0x408e41876cCCDC0F92210600ef50372656052a38",
+        DarknodeSlasher: "0x7AdD7E6F431Cfa23dFfce61DD9749810dc678B16",
+        DarknodeRegistry: "0xA1eb04Db7a0ffd6e458b1868660a0edAF8199Fa9",
+        DarknodeRegistryStore: "0xE8d0C5D4ca958C8619Ab1B98cA901d65340C48B1",
+        DarknodePayment: "0x376D835c6Dc5d06C6335915B36ffe9734D3E4faa",
+        DarknodePaymentStore: "0x311999EE72B5826D664FD4F3aC09c0C462eFfe49",
+
+        BTCShifter: "0x1258d7FF385d1d81017d4a3d464c02f74C61902a",
+        ZECShifter: "0x2b59Ef3Eb28c7388c7eC69d43a9b8E585C461d5b",
+        BCHShifter: "0xa76beA11766E0b66bD952bc357CF027742021a8C",
+        zBTC: "0x88C64A7D2ecC882D558DD16aBC1537515a78BB7D",
+        zZEC: "0x8dD8944320Eb76F8e39C58E7A30d34E7fbA9D719",
+        zBCH: "0x466Dd97F83b18aC23dDF16931f8171A817953fF1",
+        ShifterRegistry: "0x5d9bF2Bad3dD710e4D533681ed16eD1cfeAc9e6F",
 
         config: {
             ...config,
             MINIMUM_BOND: new BN(10000).mul(new BN(10).pow(new BN(18))),
-            mintAuthority: "0x5D0b91e8a8037C3EBB55f52D76BFc64CaBEBCAE1", // TODO
+            mintAuthority: "0x5D0b91e8a8037C3EBB55f52D76BFc64CaBEBCAE1",
+            proxyOwner: "0x5E2603499eddc325153d96445A6c44487F0d1859",
         },
     },
     testnet: {
+        Protocol: "0x8E28748620EA6f1285761AF41f311Cf6d05b188B",
+        ProtocolLogic: "0x6e35dBBE88A3746600E6e80DE52c6c5b062c6FBf",
         RenToken: "0x2cd647668494c1b15743ab283a0f980d90a87394",
-        DarknodeSlasher: "0x0000000000000000000000000000000000000000",
-        DarknodeRegistry: "0x39238ddCc6b301068f6D5B3DCa3A981EB20ba9A3",
+        DarknodeSlasher: "0x06f44b3a0C2621D581Fe667Ec2170F6A5Be02BD0",
+        DarknodeRegistry: "0xD94aD925233f8344875C74DeDF7c4cbcb92aA9FF",
         DarknodeRegistryStore: "0xc24146aE71470C2f8749DA0738b09434E0220d92",
-        DarknodePayment: "0x7e4E9ECeD2ba1EE5051C3B17dd1F81E7C1AfBFb1",
-        DarknodePaymentStore: "0xF842CE0536B49898AC4f7D8aEb5c7764bd3DB443",
+        DarknodePayment: "0x4Fc1f776ddfeb7AC1A93Cbb9FcbeFdda7e3C838E",
+        DarknodePaymentStore: "0x823c22F1e17766271a5986D9faa12bcfFDeb701B",
         tokens: {
             DAI: "0xc4375b7de8af5a38a93548eb8453a498222c4ff2",
             ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         },
 
-        BTCShifter: "0xe5c5dAe20CdE920AEEcaE132fB37321523e2fbA5",
-        ZECShifter: "0xD0B7E226e7605c0436D37AabE44668F89f941E70",
-        BCHShifter: "0x0aFf3BCFD89453d22d38C32bC6b03041f244BB4b",
+        BTCShifter: "0x7e6E1D8F26D2b49B2fB4C3B6f5b7dad8d8ea781b",
+        ZECShifter: "0x1615f5a285134925Fb4D87812827863fde046fDa",
+        BCHShifter: "0xea08e98E56f1088E2001fAB8369A1c9fEEc58Ec9",
         zBTC: "0xc6069E8DeA210C937A846db2CEbC0f58ca111f26",
         zZEC: "0xB9b5B5346BF8CA9bc02f4F9d8947916b7CA9C97E",
         zBCH: "0x7bdb2A8231eB4E4795749F01f0241940a8166575",
@@ -91,16 +101,19 @@ module.exports = {
         config: {
             ...config,
             mintAuthority: "0x44Bb4eF43408072bC888Afd1a5986ba0Ce35Cb54",
+            proxyOwner: "0x5E2603499eddc325153d96445A6c44487F0d1859",
         },
     },
 
     devnet: {
+        Protocol: "0x1deB773B50B66b0e65e62E41380355a1A2BEd2e1",
+        ProtocolLogic: "0x6e35dBBE88A3746600E6e80DE52c6c5b062c6FBf",
         RenToken: "0x2cd647668494c1b15743ab283a0f980d90a87394",
-        DarknodeSlasher: "0xfe48363206E1849a2F53f5214af932354c35FD89",
-        DarknodeRegistry: "0x6E1a6b85f05bfec5c24C7a26E302cB28e639651c",
-        DarknodeRegistryStore: "0xC126a308dd07Adfa4a445686dcF7CbC423185593",
-        DarknodePayment: "0x1f1b1d015Fc31d425C616cC35E39e31686DA69A8",
-        DarknodePaymentStore: "0x6341DF1012E862f766Fcd72e0fCAAc5a3839CFef",
+        DarknodeSlasher: "0xf29c5726F9f8afA51CE39658e713dc40692218C5",
+        DarknodeRegistry: "0x00bC610a8080e251bABA56488241eB832D95a699",
+        DarknodeRegistryStore: "0x3eA70E8eE1C4e0Fe9Cc2b120d72800f093a39665",
+        DarknodePayment: "0x388f0B88a814C8dA63F4574DF10C8987E29560e7",
+        DarknodePaymentStore: "0xa013EEb63525cDaa94D7FcD08cB822265b6044Fe",
         tokens: {
             DAI: "0xc4375b7de8af5a38a93548eb8453a498222c4ff2",
             ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
@@ -117,33 +130,37 @@ module.exports = {
         config: {
             ...config,
             mintAuthority: "0x1B9d58208879AA9aa9E10040b34cF2b684237621",
+            proxyOwner: "0x5E2603499eddc325153d96445A6c44487F0d1859",
         },
     },
 
     localnet: {
-        RenToken: "",
-        DarknodeSlasher: "",
-        DarknodeRegistry: "",
-        DarknodeRegistryStore: "",
-        DarknodePayment: "",
-        DarknodePaymentStore: "",
+        Protocol: "0x28e4aA30e99F6B80acAf82Cc384a2438AF245204",
+        ProtocolLogic: "0xcfb2fD20211552216755E318aD091d0d1C3a39a7",
+        RenToken: "0x2cd647668494c1b15743ab283a0f980d90a87394",
+        DarknodeSlasher: "0x8447EfA2a06bfEf230c93fa60f8a82EEfEA5A427",
+        DarknodeRegistry: "0x226DE25a04AE3b133D6611614D3f24B7B787Abd6",
+        DarknodeRegistryStore: "0xA89F46C8daA8E8fe6F4dcc8361205d14b8E2A617",
+        DarknodePayment: "0x0C6445A8D3120e52B05A5892E562e53A6ae17Eb9",
+        DarknodePaymentStore: "0xee9de0Ab7BB06B063B44677382FE95C87b497358",
         tokens: {
             DAI: "0xc4375b7de8af5a38a93548eb8453a498222c4ff2",
             ETH: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
         },
 
-        ShifterRegistry: "",
-        zBTC: "",
-        BTCShifter: "",
-        zZEC: "",
-        ZECShifter: "",
-        zBCH: "",
-        BCHShifter: "",
+        BTCShifter: "0x7012ECc13De5Ce416C14C013d9b02b7c37154b37",
+        ZECShifter: "0x69AC72Cb35B1AA818e90842C048719a3246ba0BE",
+        BCHShifter: "0x175b4A3cC812efd35fc3Ef86F5B1088ced85D96E",
+        zBTC: "0xDE027035d33CEB2757685E325de1A0b924aA73E6",
+        zZEC: "0xB7b7be50B13E6817afBb30C93161D0eB388b8f08",
+        zBCH: "0x679F9e30549311fE7FEE0Eae44CE09e043a44055",
+        ShifterRegistry: "0x33666067A7741B9e88520285C96B776E73281811",
 
         config: {
             ...config,
             MINIMUM_EPOCH_INTERVAL_SECONDS: 1,
             mintAuthority: "0x04084f1cACCB87Dcab9a29a084281294dA96Bf44",
+            proxyOwner: "0x5E2603499eddc325153d96445A6c44487F0d1859",
         },
     },
 

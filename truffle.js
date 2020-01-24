@@ -52,7 +52,7 @@ module.exports = {
         // },
         enableTimeouts: false,
         useColors: true,
-        bail: true,
+        bail: false,
     },
     compilers: {
         solc: {
@@ -61,7 +61,6 @@ module.exports = {
                 evmVersion: "petersburg",
                 optimizer: {
                     enabled: true,
-
                     runs: 200,
                 }
             }

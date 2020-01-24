@@ -1,15 +1,16 @@
-pragma solidity ^0.5.12;
+pragma solidity 0.5.12;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 import "../libraries/Claimable.sol";
 import "../libraries/LinkedList.sol";
 import "../RenToken/RenToken.sol";
+import "../libraries/CanReclaimTokens.sol";
 
 /// @notice This contract stores data and funds for the DarknodeRegistry
 /// contract. The data / fund logic and storage have been separated to improve
 /// upgradability.
-contract DarknodeRegistryStore is Claimable {
+contract DarknodeRegistryStore is Claimable, CanReclaimTokens {
     using SafeMath for uint256;
 
     string public VERSION; // Passed in as a constructor parameter.
@@ -61,20 +62,7 @@ contract DarknodeRegistryStore is Claimable {
     ) public {
         VERSION = _VERSION;
         ren = _ren;
-    }
-
-    /// @notice Allow the owner of the contract to recover funds accidentally
-    /// sent to the contract. To withdraw ETH, the token should be set to `0x0`.
-    /// @dev The owner is the Darknode Registry so it would need to be updated
-    /// first before being able to recover funds.
-    function recoverTokens(address _token) external onlyOwner {
-        require(_token != address(ren), "not allowed to withdraw REN");
-
-        if (_token == address(0x0)) {
-            msg.sender.transfer(address(this).balance);
-        } else {
-            ERC20(_token).transfer(msg.sender, ERC20(_token).balanceOf(address(this)));
-        }
+        blacklistRecoverableToken(address(ren));
     }
 
     /// @notice Instantiates a darknode and appends it to the darknodes
@@ -122,16 +110,16 @@ contract DarknodeRegistryStore is Claimable {
         uint256 bond = darknodeRegistry[darknodeID].bond;
         delete darknodeRegistry[darknodeID];
         LinkedList.remove(darknodes, darknodeID);
-        require(ren.transfer(owner(), bond), "bond transfer failed");
+        require(ren.transfer(owner(), bond), "DarknodeRegistryStore: bond transfer failed");
     }
 
     /// @notice Updates the bond of a darknode. The new bond must be smaller
     /// than the previous bond of the darknode.
     function updateDarknodeBond(address darknodeID, uint256 decreasedBond) external onlyOwner {
         uint256 previousBond = darknodeRegistry[darknodeID].bond;
-        require(decreasedBond < previousBond, "bond not decreased");
+        require(decreasedBond < previousBond, "DarknodeRegistryStore: bond not decreased");
         darknodeRegistry[darknodeID].bond = decreasedBond;
-        require(ren.transfer(owner(), previousBond.sub(decreasedBond)), "bond transfer failed");
+        require(ren.transfer(owner(), previousBond.sub(decreasedBond)), "DarknodeRegistryStore: bond transfer failed");
     }
 
     /// @notice Updates the deregistration timestamp of a darknode.

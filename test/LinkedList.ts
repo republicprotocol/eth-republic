@@ -61,59 +61,105 @@ contract("LinkedList", () => {
         (await linkedList.begin.call()).should.equal(NODE1);
     });
 
-    it("handle removing NULL", async () => {
-        await linkedList.insertBefore(NODE1, NULL);
-        await linkedList.remove(NULL);
+    it("should not add NULL", async () => {
+        await linkedList.insertBefore(NODE1, NULL)
+            .should.be.rejectedWith(/LinkedList: invalid address/);
+        await linkedList.insertAfter(NODE1, NULL)
+            .should.be.rejectedWith(/LinkedList: invalid address/);
+        await linkedList.append(NULL)
+            .should.be.rejectedWith(/LinkedList: invalid address/);
+        await linkedList.remove(NULL)
+            .should.be.rejectedWith(/LinkedList: not in list/);
     });
 
     it("should not add the same value more than once", async () => {
-        await linkedList.append(NODE1).should.be.rejectedWith(/already in list/);
+        await linkedList.append(NODE1)
+            .should.be.rejectedWith(/LinkedList: already in list/);
     });
 
     it("should not remove a node not in the list", async () => {
-        await linkedList.remove(NOT_NODE1).should.be.rejectedWith(/not in list/);
+        await linkedList.remove(NOT_NODE1)
+            .should.be.rejectedWith(/LinkedList: not in list/);
     });
 
     it("should not insert after a node not in the list", async () => {
-        await linkedList.insertAfter(NOT_NODE1, NOT_NODE2).should.be.rejectedWith(/not in list/);
+        await linkedList.insertAfter(NOT_NODE1, NOT_NODE2)
+            .should.be.rejectedWith(/LinkedList: not in list/);
     });
 
     it("should not insert before a node not in the list", async () => {
-        await linkedList.insertBefore(NOT_NODE1, NOT_NODE2).should.be.rejectedWith(/not in list/);
+        await linkedList.insertBefore(NOT_NODE1, NOT_NODE2)
+            .should.be.rejectedWith(/LinkedList: not in list/);
     });
 
     it("should not insert a node already in the list", async () => {
-        await linkedList.insertAfter(NODE2, NODE3).should.be.rejectedWith(/already in list/);
+        await linkedList.insertAfter(NODE2, NODE3)
+            .should.be.rejectedWith(/LinkedList: already in list/);
     });
 
     it("should not insert a node already in the list", async () => {
-        await linkedList.insertBefore(NODE3, NODE2).should.be.rejectedWith(/already in list/);
+        await linkedList.insertBefore(NODE3, NODE2)
+            .should.be.rejectedWith(/LinkedList: already in list/);
     });
 
     it("should not prepend a value that already exists", async () => {
-        await linkedList.prepend(NODE2).should.be.rejectedWith(/already in list/);
+        await linkedList.prepend(NODE2)
+            .should.be.rejectedWith(/LinkedList: already in list/);
     });
 
     it("should not swap a node not in the list, and a node in the list", async () => {
-        await linkedList.swap(NOT_NODE1, NODE2).should.be.rejectedWith(/not in list/);
+        await linkedList.swap(NOT_NODE1, NODE2)
+            .should.be.rejectedWith(/LinkedList: not in list/);
     });
 
     it("should not swap a node in the list, and a node not in the list", async () => {
-        await linkedList.swap(NODE2, NOT_NODE1).should.be.rejectedWith(/not in list/);
+        await linkedList.swap(NODE2, NOT_NODE1)
+            .should.be.rejectedWith(/LinkedList: not in list/);
     });
 
     it("should not swap two nodes that are not in the list", async () => {
-        await linkedList.swap(NOT_NODE1, NOT_NODE2).should.be.rejectedWith(/not in list/);
+        await linkedList.swap(NOT_NODE1, NOT_NODE2)
+            .should.be.rejectedWith(/LinkedList: not in list/);
     });
 
     it("should not get previous node of the node if it is not in the list", async () => {
         // NOTE: The revert reason isn't available for .call
-        await linkedList.previous.call(NOT_NODE1).should.be.rejectedWith(/revert/); // not in list
+        await linkedList.previous.call(NOT_NODE1)
+            .should.be.rejectedWith(/LinkedList: not in list/); // not in list
     });
 
     it("should not get following node of the given node if it is not in the list", async () => {
         // NOTE: The revert reason isn't available for .call
-        await linkedList.next.call(NOT_NODE1).should.be.rejectedWith(/revert/); // not in list
+        await linkedList.next.call(NOT_NODE1)
+            .should.be.rejectedWith(/LinkedList: not in list/); // not in list
+    });
+
+    it("should revert when given incorrect count while retrieving elements in the list", async () => {
+        await linkedList.elements.call(NODE1, 0)
+            .should.be.rejectedWith(/LinkedList: invalid count/); // invalid count
+    });
+
+    it("should revert when given incorrect start address while retrieving elements in the list", async () => {
+        await linkedList.elements.call(NODE4, 1)
+            .should.be.rejectedWith(/LinkedList: not in list/); // invalid count
+    });
+
+    it("should return elements in the list", async () => {
+        let shifters = await linkedList.elements.call(NODE1, 1);
+        shifters[0].should.equal(NODE1);
+        shifters.length.should.equal(1);
+
+        shifters = await linkedList.elements.call(NODE2, 2);
+        shifters[0].should.equal(NODE2);
+        shifters[1].should.equal(NODE3);
+        shifters.length.should.equal(2);
+
+        await linkedList.append(NODE4);
+
+        shifters = await linkedList.elements.call(NODE1, 10);
+        shifters[0].should.equal(NODE1);
+        shifters[3].should.equal(NODE4);
+        shifters.length.should.equal(10);
     });
 
 });

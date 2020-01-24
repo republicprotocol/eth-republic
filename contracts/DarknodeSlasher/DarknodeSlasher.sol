@@ -1,14 +1,13 @@
-pragma solidity ^0.5.12;
+pragma solidity 0.5.12;
 
-import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-
+import "../libraries/Claimable.sol";
 import "../libraries/Validate.sol";
 import "../DarknodeRegistry/DarknodeRegistry.sol";
 
 /// @notice DarknodeSlasher will become a voting system for darknodes to
 /// deregister other misbehaving darknodes.
 /// Right now, it is a placeholder.
-contract DarknodeSlasher is Ownable {
+contract DarknodeSlasher is Claimable {
 
     DarknodeRegistry public darknodeRegistry;
 
@@ -26,9 +25,14 @@ contract DarknodeSlasher is Ownable {
     // mapping of address to whether the darknode has been blacklisted
     mapping(address => bool) public blacklisted;
 
+    /// @notice Emitted when the DarknodeRegistry is updated.
+    /// @param _previousDarknodeRegistry The address of the old registry.
+    /// @param _nextDarknodeRegistry The address of the new registry.
+    event LogDarknodeRegistryUpdated(DarknodeRegistry _previousDarknodeRegistry, DarknodeRegistry _nextDarknodeRegistry);
+
     /// @notice Restrict a function to have a valid percentage
     modifier validPercent(uint256 _percent) {
-        require(_percent <= 100, "invalid percentage");
+        require(_percent <= 100, "DarknodeSlasher: invalid percentage");
         _;
     }
 
@@ -36,6 +40,17 @@ contract DarknodeSlasher is Ownable {
         DarknodeRegistry _darknodeRegistry
     ) public {
         darknodeRegistry = _darknodeRegistry;
+    }
+
+    /// @notice Allows the contract owner to update the address of the
+    /// darknode registry contract.
+    /// @param _darknodeRegistry The address of the Darknode Registry
+    /// contract.
+    function updateDarknodeRegistry(DarknodeRegistry _darknodeRegistry) external onlyOwner {
+        require(address(_darknodeRegistry) != address(0x0), "DarknodeSlasher: invalid Darknode Registry address");
+        DarknodeRegistry previousDarknodeRegistry = darknodeRegistry;
+        darknodeRegistry = _darknodeRegistry;
+        emit LogDarknodeRegistryUpdated(previousDarknodeRegistry, darknodeRegistry);
     }
 
     function setBlacklistSlashPercent(uint256 _percentage) public validPercent(_percentage) onlyOwner {
@@ -58,7 +73,7 @@ contract DarknodeSlasher is Ownable {
     }
 
     function blacklist(address _guilty) external onlyOwner {
-        require(!blacklisted[_guilty], "already blacklisted");
+        require(!blacklisted[_guilty], "DarknodeSlasher: already blacklisted");
         blacklisted[_guilty] = true;
         darknodeRegistry.slash(_guilty, owner(), blacklistSlashPercent);
     }
@@ -83,7 +98,7 @@ contract DarknodeSlasher is Ownable {
             _validRound2,
             _signature2
         );
-        require(!slashed[_height][_round][signer], "already slashed");
+        require(!slashed[_height][_round][signer], "DarknodeSlasher: already slashed");
         slashed[_height][_round][signer] = true;
         darknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent);
     }
@@ -104,7 +119,7 @@ contract DarknodeSlasher is Ownable {
             _blockhash2,
             _signature2
         );
-        require(!slashed[_height][_round][signer], "already slashed");
+        require(!slashed[_height][_round][signer], "DarknodeSlasher: already slashed");
         slashed[_height][_round][signer] = true;
         darknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent);
     }
@@ -125,7 +140,7 @@ contract DarknodeSlasher is Ownable {
             _blockhash2,
             _signature2
         );
-        require(!slashed[_height][_round][signer], "already slashed");
+        require(!slashed[_height][_round][signer], "DarknodeSlasher: already slashed");
         slashed[_height][_round][signer] = true;
         darknodeRegistry.slash(signer, msg.sender, maliciousSlashPercent);
     }
@@ -148,7 +163,7 @@ contract DarknodeSlasher is Ownable {
             _f,
             _signature
         );
-        require(!secretRevealed[signer], "already slashed");
+        require(!secretRevealed[signer], "DarknodeSlasher: already slashed");
         secretRevealed[signer] = true;
         darknodeRegistry.slash(signer, msg.sender, secretRevealSlashPercent);
     }
